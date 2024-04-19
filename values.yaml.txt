@@ -1,0 +1,65 @@
+pod:
+  name: my-pod
+  restartPolicy: Always
+supersetContainer:
+  name: superset_app
+  image: 13.56.162.158:5000/superset-image:latest
+  port: 8088
+  pullPolicy: IfNotPresent
+superset-initcontainer:
+  name: superset_init
+  image: 13.56.162.158:5000/superset-image:latest
+  pullPolicy: IfNotPresent
+superset-workercontainer:
+  name: superset_worker
+  image: 13.56.162.158:5000/superset-image:latest
+  pullPolicy: IfNotPresent
+superset-worker-beat:
+  name: superset_worker_beat
+  image: 13.56.162.158:5000/superset-image:latest
+  pullPolicy: IfNotPresent
+databaseContainer:
+  name: superset_db
+  image: postgres:15
+  pullPolicy: IfNotPresent
+redisContainer:
+  name: superset_cache
+  image:redis:7
+  port: 6379
+  pullPolicy: IfNotPresent
+pvc:
+  redis:
+    storageClassName: redis-storage
+    name: redis-pvc
+    storage: 5Gi
+  database:
+    storageClassName: database-storage
+    name: database-pvc
+    storage: 15Gi
+  superset:
+    storageClassName: redis-storage
+    name: superset-pvc
+    storage: 5Gi
+configMapvalues:
+  database:
+     db: superset
+     host: db
+     port: 5432
+     dialect: postgresql
+  redis:
+     host: redis
+     port: 6379
+  superset:
+     pythonpath: /app/pythonpath:/app/docker/pythonpath_dev
+     supersetenv: production
+     cypressconfig: false
+     supersetport: 8088
+     mapboxapikey: ''
+secretsvalues:
+   database:
+     username: c3VwZXJzZXQ=
+     password: c3VwZXJzZXQ=
+   app:
+     supersetsecretkey: VEVTVF9OT05fREVWX1NFQ1JFVA==
+envVars: |-
+  {{ .Files.Get "env-vars.yaml" | nindent 4 }}

@@ -1,0 +1,71 @@
+env:
+        - name:DATABASE_DB
+          valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key: DB
+        - name:DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key: HOST
+        - name:DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key: PORT
+         - name:DATABASE_DIALECT
+           valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key:  DIALECT
+         - name:REDIS_HOST
+           valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key: REDISHOST
+         - name:REDIS_PORT
+           valueFrom:
+            configMapKeyRef:
+              name:db-app-config
+              key: REDISPORT
+          - name:PYTHONPATH
+            valueFrom:
+             configMapKeyRef:
+               name:db-app-config
+               key: PYTHONPATH
+          - name:SUPERSET_ENV
+            valueFrom:
+             configMapKeyRef:
+               name:db-app-config
+               key: SUPERSETENV
+          - name:CYPRESS_CONFIG
+            valueFrom:
+             configMapKeyRef:
+               name:db-app-config
+               key: CYPRESSCONFIG
+          - name:SUPERSET_PORT
+            valueFrom:
+             configMapKeyRef:
+               name:db-app-config
+               key:SUPERSETPORT
+          - name:MAPBOX_API_KEY
+            valueFrom:
+             configMapKeyRef:
+               name:db-app-config
+               key:MAPBOXAPIKEY
+          - name:DATABASE_USER
+            valueFrom:
+             secretKeyRef:
+              name: db-app-credentials
+              key: USERNAME
+          - name:DATABASE_PASSWORD
+            valueFrom:
+             secretKeyRef:
+              name: db-app-credentials
+              key: PASSWORD
+          - name:SUPERSET_SECRET_KEY
+            valueFrom:
+             secretKeyRef:
+              name: db-app-credentials
+              key: SUPERSETSECRETKEY

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+DATABASE_HOST="localhost"
+DATABASE_PORT="5432"
+
+REDIS_HOST="localhost"
+REDIS_PORT="6379"
+
+# Check if database and Redis are listening on the specified ports
+nc -z "$DATABASE_HOST" "$DATABASE_PORT" && nc -z "$REDIS_HOST" "$REDIS_PORT"
