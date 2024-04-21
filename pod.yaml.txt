@@ -1,11 +1,10 @@
-{{- include "mychart.namespaces" . | nindent 4 }}
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ .Values.pod.name }}
+  name: {{ .Values.pod.name | quote }}
   namespace: tenant1
 spec:
-  restartPolicy: {{ .Values.pod.restartPolicy }}
+  restartPolicy: {{ .Values.pod.restartPolicy | quote }}
   containers:
     - name: init-container
       image: my-init-image
@@ -15,56 +14,61 @@ spec:
          mountPath: /app/docker/docker-entrypoint-initdb.d
        - name: superset-init-data
          mountPath: /app/docker
-    - name: {{ .Values.redisContainer.name }}
-      image: {{ .Values.redisContainer.image }}
-      imagePullPolicy: {{ .Values.rediscontainer.imagePullPolicy }}
+    - name: {{ .Values.redisContainer.name | quote }}
+      image: {{ .Values.redisContainer.image | quote }}
+      imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+      env:
       volumeMounts:
        - name: redis
          mountPath: /data  
-    - name: {{ .Values.databaseContainer.name }}
-      image: {{ .Values.databaseContainer.image }}
-      imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy }}
-      {{ .Values.envVars | indent 2 }}
+    - name: {{ .Values.databaseContainer.name | quote }}
+      image: {{ .Values.databaseContainer.image | quote }}
+      imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+      env:
+      {{ .Values.envvars | indent 2 }}
       volumeMounts:
        - name: db_home
          mountPath: /var/lib/postgresql/data
        - name: db-init-data
-         mountPath:/app/docker/docker-entrypoint-initdb.d
-    - name: {{ .Values.supersetContainer.name }}
-      image: {{ .Values.supersetContainer.image }}
-      imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy }}
+         mountPath: /app/docker/docker-entrypoint-initdb.d
+    - name: {{ .Values.supersetContainer.name | quote }}
+      image: {{ .Values.supersetContainer.image | quote }}
+      imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
       command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
       securityContext:
         runAsUser: 0
       ports:
-        - containerPort: {{ .Values.supersetContainer.port }}
-      {{ .Values.envVars | indent 2 }}
+        - containerPort: {{ .Values.supersetContainer.port | quote }}
+      env:  
+      {{ .Values.envvars | indent 2 }}
       volumeMounts:
        - name: superset_home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
-    - name: {{ .Values.superset-initContainer.name }}
-      image: {{ .Values.superset-initContainer.image }}
-      imagePullPolicy: {{ .Values.superset-initContainer.imagePullPolicy }}
+    - name: {{ .Values.superset_initcontainer.name | quote }}
+      image: {{ .Values.superset_initcontainer.image | quote }}
+      imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
       command: ["/app/docker/docker-init.sh"]
       securityContext:
         runAsUser: 0
-      {{ .Values.envVars | indent 2 }}
+      env:  
+      {{ .Values.envvars | indent 2 }}
       volumeMounts:
        - name: superset_home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
-      readinessProbe: # Don't define a readiness probe
-      livenessProbe: # Don't define a liveness probe 
-    - name: {{ .Values.superset-workerContainer.name }}
-      image: {{ .Values.superset-workerContainer.image }}
-      imagePullPolicy: {{.Values.superset-workerContainer.imagePullPolicy }}
+      readinessProbe: null  # Don't define a readiness probe
+      livenessProbe: null # Don't define a liveness probe 
+    - name: {{ .Values.superset_workercontainer.name | quote }}
+      image: {{ .Values.superset_workercontainer.image | quote }}
+      imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
       command: ["/app/docker/docker-bootstrap.sh", "worker"]
       securityContext:
         runAsUser: 0
-      {{ .Values.envVars | indent 2 }}
+      env:
+      {{ .Values.envvars | indent 2 }}
       volumeMounts:
        - name: superset_home
          mountPath: /app/superset_home
@@ -76,41 +80,37 @@ spec:
           "CMD-SHELL",
           "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
         ]    
-    - name: {{ .Values.superset-worker-beatContainer.name }}
-      image: {{ .Values.superset-worker-beatContainer.image }}
-      imagePullPolicy: {{ .Values.superset-worker-beatContainer.imagePullPolicy }}
+    - name: {{ .Values.superset_worker_beatcontainer.name | quote }}
+      image: {{ .Values.superset_worker_beatcontainer.image | quote }}
+      imagePullPolicy: {{ .Values.superset_worker_beatcontainer.imagePullPolicy | quote }}
       command: ["/app/docker/docker-bootstrap.sh", "beat"]
       securityContext:
         runAsUser: 0
-      {{ .Values.envVars | indent 2 }}
+      env:
+      {{ .Values.envvars | indent 2 }}
       volumeMounts:
        - name: superset_home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
-      readinessProbe: # Don't define a readiness probe
-      livenessProbe: # Don't define a liveness probe  
+      livenessProbe:  null
       readinessProbe:
       exec:
         command:
           - /bin/bash
           - -c
           - {{ .Files.Get "scripts/check_dependencies.sh" | quote }}
-
-      volumes:
-       - name: redis
-         persistentVolumeClaim:
-          claimName: {{ .Values.pvc.redis.name | quote}}
-      volumes:
-       - name: db_home
-         persistentVolumeClaim:
-          claimName:name: {{ .Values.pvc.database.name | quote}}
-      volumes:
-       - name: superset_home
-         persistentVolumeClaim:
-          claimName: {{ .Values.pvc.superset.name | quote}}
-      volumes:
-       - name: db-init-data
-         emptyDir: {}
-       - name: superset-init-data
-         emptyDir: {}
+  volumes:
+    - name: redis
+      persistentVolumeClaim:
+      claimName: {{ .Values.pvc.redis.name | quote }}
+    - name: db_home
+      persistentVolumeClaim:
+      claimName: {{ .Values.pvc.database.name | quote }}
+    - name: superset_home
+      persistentVolumeClaim:
+      claimName: {{ .Values.pvc.superset.name | quote }}
+    - name: db-init-data
+      emptyDir: {}
+    - name: superset-init-data
+      emptyDir: {}
