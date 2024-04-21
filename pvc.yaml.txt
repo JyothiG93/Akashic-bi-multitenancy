@@ -2,6 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.pvc.redis.name | quote}}
+  namespace: tenant1
 spec:
   storageClassName: {{ .Values.pvc.redis.storageClassName | quote}}
   accessModes:
@@ -15,6 +16,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.pvc.database.name | quote}}
+  namespace: tenant1
 spec:
   storageClassName: {{ .Values.pvc.database.storageClassName | quote}}
   accessModes:
@@ -27,6 +29,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.pvc.superset.name | quote}}
+  namespace: tenant1
 spec:
   storageClassName: {{ .Values.pvc.superset.storageClassName | quote}}
   accessModes:
