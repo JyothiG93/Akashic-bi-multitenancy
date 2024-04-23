@@ -6,8 +6,11 @@ metadata:
 spec:
   restartPolicy: {{ .Values.pod.restartPolicy | quote }}
   containers:
-    - name: init-container
-      image: my-init-image
+    - name: init-container1
+      image: busybox
+      command: ["sh", "-c", "until nc -zv localhost 5432 && nc -zv localhost 6379; do echo 'Waiting for database and Redis...'; sleep 1; done"]
+    - name: init-container2
+      image: busybox
       command: ["sh", "-c", "/app/docker/docker-entrypoint-initdb.d && /app/docker"]
       volumeMounts:
        - name: db-init-data
@@ -17,32 +20,37 @@ spec:
     - name: {{ .Values.redisContainer.name | quote }}
       image: {{ .Values.redisContainer.image | quote }}
       imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
-      env:
       volumeMounts:
        - name: redis
          mountPath: /data  
     - name: {{ .Values.databaseContainer.name | quote }}
       image: {{ .Values.databaseContainer.image | quote }}
       imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
-      env:
-      {{ .Values.envvars | indent 2 }}
+      envFrom:
+      - configMapRef:
+          name: db-app-config
+      - secretRef:
+          name: db-app-credentials 
       volumeMounts:
-       - name: db_home
+       - name: db-home
          mountPath: /var/lib/postgresql/data
        - name: db-init-data
          mountPath: /app/docker/docker-entrypoint-initdb.d
     - name: {{ .Values.supersetContainer.name | quote }}
       image: {{ .Values.supersetContainer.image | quote }}
       imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
+      ports:
+        - containerPort: {{ .Values.supersetContainer.port }}
       command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
       securityContext:
         runAsUser: 0
-      ports:
-        - containerPort: {{ .Values.supersetContainer.port | quote }}
-      env:  
-      {{ .Values.envvars | indent 2 }}
+      envFrom:
+      - configMapRef:
+          name: db-app-config
+      - secretRef:
+          name: db-app-credentials 
       volumeMounts:
-       - name: superset_home
+       - name: superset-home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
@@ -52,10 +60,13 @@ spec:
       command: ["/app/docker/docker-init.sh"]
       securityContext:
         runAsUser: 0
-      env:  
-      {{ .Values.envvars | indent 2 }}
+      envFrom:
+      - configMapRef:
+          name: db-app-config
+      - secretRef:
+          name: db-app-credentials 
       volumeMounts:
-       - name: superset_home
+       - name: superset-home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
@@ -67,10 +78,13 @@ spec:
       command: ["/app/docker/docker-bootstrap.sh", "worker"]
       securityContext:
         runAsUser: 0
-      env:
-      {{ .Values.envvars | indent 2 }}
+      envFrom:
+      - configMapRef:
+          name: db-app-config
+      - secretRef:
+          name: db-app-credentials 
       volumeMounts:
-       - name: superset_home
+       - name: superset-home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
@@ -86,28 +100,25 @@ spec:
       command: ["/app/docker/docker-bootstrap.sh", "beat"]
       securityContext:
         runAsUser: 0
-      env:
-      {{ .Values.envvars | indent 2 }}
+      envFrom:
+      - configMapRef:
+          name: db-app-config
+      - secretRef:
+          name: db-app-credentials 
       volumeMounts:
-       - name: superset_home
+       - name: superset-home
          mountPath: /app/superset_home
        - name: superset-init-data
          mountPath: /app/docker
       livenessProbe:  null
-      readinessProbe:
-      exec:
-        command:
-          - /bin/bash
-          - -c
-          - {{ .Files.Get "scripts/check_dependencies.sh" | quote }}
   volumes:
     - name: redis
       persistentVolumeClaim:
       claimName: {{ .Values.pvc.redis.name | quote }}
-    - name: db_home
+    - name: db-home
       persistentVolumeClaim:
       claimName: {{ .Values.pvc.database.name | quote }}
-    - name: superset_home
+    - name: superset-home
       persistentVolumeClaim:
       claimName: {{ .Values.pvc.superset.name | quote }}
     - name: db-init-data
