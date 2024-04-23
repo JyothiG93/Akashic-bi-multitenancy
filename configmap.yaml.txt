@@ -4,14 +4,6 @@ metadata:
   name: db-app-config
   namespace: tenant1
 data:
-  DB: {{ .Values.envVars.database.db | quote}}
-  HOST: {{ .Values.envVars.database.host | quote}}
-  PORT: {{ .Values.envVars.database.port | quote }}
-  DIALECT: {{ .Values.envVars.database.dialect | quote}}
-  REDISHOST: {{ .Values.envVars.redis.host | quote}}
-  REDISPORT: {{ .Values.envVars.redis.port | quote}}
-  PYTHONPATH: {{ .Values.envVars.superset.pythonpath | quote}}
-  SUPERSETENV: {{ .Values.envVars.superset.supersetenv | quote}}
-  CYPRESSCONFIG: {{ .Values.envVars.superset.cypressconfig | quote}}
-  SUPERSETPORT: {{ .Values.envVars.superset.supersetport | quote}}
-  MAPBOXAPIKEY: {{ .Values.envVars.superset.mapboxapikey | quote}}
+   {{- range $key, $value := .Values.configMapdata}}
+   {{ $key }}: {{ $value | quote }}
+   {{- end }}
