@@ -39,3 +39,24 @@ pvc:
     storageClassName: redis-storage
     name: superset-pvc
     storage: 5Gi
+configMapdata:
+  database:
+   db: superset
+   dbhost: db
+   dbport: 5432
+   dialect: postgresql
+  redis:
+   redishost: redis
+   redisport: 6379
+  superset:
+   pythonpath: /app/pythonpath:/app/docker/pythonpath_dev
+   supersetenv: production
+   cypressconfig: false
+   supersetport: 8088
+   mapboxapikey: ''
+secretsdata:
+  database:
+   username: c3VwZXJzZXQ=
+   password: c3VwZXJzZXQ=
+  app:
+   supersetsecretkey: VEVTVF9OT05fREVWX1NFQ1JFVA==
