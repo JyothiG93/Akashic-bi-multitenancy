@@ -1,5 +1,5 @@
 pod:
-  name: Akashic-Bi-tenant1
+  name: akashic-bi-tenant1
   restartPolicy: Always
 supersetContainer:
   name: superset-app
@@ -39,5 +39,3 @@ pvc:
     storageClassName: redis-storage
     name: superset-pvc
     storage: 5Gi
-envVars: 
- {{ .Files.Get "env-vars.yaml" | nindent 2 }}
