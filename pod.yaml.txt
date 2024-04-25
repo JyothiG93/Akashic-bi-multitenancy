@@ -9,22 +9,21 @@ spec:
     - name: init-container1
       image: busybox
       command: ["sh", "-c", "until nc -zv localhost 5432 && nc -zv localhost 6379; do echo 'Waiting for database and Redis...'; sleep 1; done"]
-    - name: init-container2
-      image: busybox
-      command: ["sh", "-c", "/app/docker/docker-entrypoint-initdb.d && /app/docker"]
-      volumeMounts:
-       - name: db-init-data
-         mountPath: /app/docker/docker-entrypoint-initdb.d
-       - name: superset-init-data
-         mountPath: /app/docker
+    # - name: init-container2
+    #   image: busybox
+    #   command: ["sh", "-c", "cat /app/docker/docker-entrypoint-initdb.d/examples-init.sh >> /usr/local/examples-initdb.sh"]
+    #   volumeMounts:
+    #    - name: config-volume
+    #      mountPath: /app/docker/docker-entrypoint-initdb.d
+    #      readOnly: false
     - name: {{ .Values.redisContainer.name | quote }}
       image: {{ .Values.redisContainer.image | quote }}
-      imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+      imagePullPolicy: {{ .Values.redisContainer.imagePullPolicy | quote }}
       env:
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
       volumeMounts:
        - name: redis
          mountPath: /data  
@@ -32,31 +31,77 @@ spec:
       image: {{ .Values.databaseContainer.image | quote }}
       imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
       env:
-      {{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-password
+        - name: APP_SUPERSETSECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: app-secretkey
+{{- range $key, $value := .Values.configMapdata.database }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
       volumeMounts:
        - name: db-home
          mountPath: /var/lib/postgresql/data
-       - name: db-init-data
+       - name: config-volume 
          mountPath: /app/docker/docker-entrypoint-initdb.d
+    - name: {{ .Values.superset_initcontainer.name | quote }}
+      image: {{ .Values.superset_initcontainer.image | quote }}
+      imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
+      command: ["/app/docker/docker-init.sh"]
+      securityContext:
+        runAsUser: 0
+      env:
+{{- range $key, $value := .Values.configMapdata.database }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-password
+        - name: APP_SUPERSETSECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: app-secretkey
+      volumeMounts:
+       - name: superset-home
+         mountPath: /app/superset_home
+      readinessProbe: null  # Don't define a readiness probe
+      livenessProbe: null # Don't define a liveness probe      
     - name: {{ .Values.supersetContainer.name | quote }}
       image: {{ .Values.supersetContainer.image | quote }}
       imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
@@ -66,65 +111,36 @@ spec:
       securityContext:
         runAsUser: 0
       env:
-      {{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
+{{- range $key, $value := .Values.configMapdata.database }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-password
+        - name: App_SUPERSETSECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: app-secretkey
       volumeMounts:
        - name: superset-home
          mountPath: /app/superset_home
-       - name: superset-init-data
-         mountPath: /app/docker
-    - name: {{ .Values.superset_initcontainer.name | quote }}
-      image: {{ .Values.superset_initcontainer.image | quote }}
-      imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
-      command: ["/app/docker/docker-init.sh"]
-      securityContext:
-        runAsUser: 0
-      env:
-      {{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      volumeMounts:
-       - name: superset-home
-         mountPath: /app/superset_home
-       - name: superset-init-data
-         mountPath: /app/docker
-      readinessProbe: null  # Don't define a readiness probe
-      livenessProbe: null # Don't define a liveness probe 
     - name: {{ .Values.superset_workercontainer.name | quote }}
       image: {{ .Values.superset_workercontainer.image | quote }}
       imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
@@ -132,31 +148,36 @@ spec:
       securityContext:
         runAsUser: 0
       env:
-      {{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
+{{- range $key, $value := .Values.configMapdata.database }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-password
+        - name: APP_SUPERSETSECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: app-secretkey
       volumeMounts:
        - name: superset-home
          mountPath: /app/superset_home
-       - name: superset-init-data
-         mountPath: /app/docker
       readinessProbe:
        exec:
         command: [
@@ -170,32 +191,36 @@ spec:
       securityContext:
         runAsUser: 0
       env:
-      {{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      env:
-      {{- range $key, $value := .Values.secretsdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
-      {{- range $key, $value := .Values.secretsdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-      {{- end }}
+{{- range $key, $value := .Values.configMapdata.database }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+        - name: {{ $key | upper | replace "-" "_" }}
+          value: {{ $value | quote }}
+{{- end }}
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: db-password
+        - name: APP_SUPERSETSECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: db-app-credentials
+              key: app-secretkey
       volumeMounts:
        - name: superset-home
          mountPath: /app/superset_home
-       - name: superset-init-data
-         mountPath: /app/docker
       livenessProbe:  null
   volumes:
     - name: redis
@@ -207,7 +232,7 @@ spec:
     - name: superset-home
       persistentVolumeClaim:
         claimName: {{ .Values.pvc.superset.name | quote }}
-    - name: db-init-data
-      emptyDir: {}
-    - name: superset-init-data
-      emptyDir: {}
+    - name: config-volume
+      configMap:
+        name: db-init-configmap
+        defaultMode: 0777
