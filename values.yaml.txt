@@ -3,20 +3,20 @@ pod:
   restartPolicy: Always
 supersetContainer:
   name: superset-app
-  image: 13.56.162.158:5000/superset-image:latest
+  image: 13.56.162.158:5000/superset-image-0.2:latest
   port: 8088
   imagepullPolicy: IfNotPresent
 superset_initcontainer:
   name: superset-init
-  image: 13.56.162.158:5000/superset-image:latest
+  image: 13.56.162.158:5000/superset-image-0.2:latest
   imagepullPolicy: IfNotPresent
 superset_workercontainer:
   name: superset-worker
-  image: 13.56.162.158:5000/superset-image:latest
+  image: 13.56.162.158:5000/superset-image-0.2:latest
   imagepullPolicy: IfNotPresent
 superset_worker_beatcontainer:
   name: superset-worker-beat
-  image: 13.56.162.158:5000/superset-image:latest
+  image: 13.56.162.158:5000/superset-image-0.2:latest
   imagepullPolicy: IfNotPresent
 databaseContainer:
   name: superset-db
@@ -28,15 +28,15 @@ redisContainer:
   imagepullPolicy: IfNotPresent
 pvc:
   redis:
-    storageClassName: redis-storage
+    storageClassName: standard
     name: redis-pvc
     storage: 5Gi
   database:
-    storageClassName: database-storage
+    storageClassName: standard
     name: database-pvc
     storage: 15Gi
   superset:
-    storageClassName: redis-storage
+    storageClassName: standard
     name: superset-pvc
     storage: 5Gi
 configMapdata:
@@ -54,9 +54,3 @@ configMapdata:
    cypressconfig: false
    supersetport: 8088
    mapboxapikey: ''
-secretsdata:
-  database:
-   username: c3VwZXJzZXQ=
-   password: c3VwZXJzZXQ=
-  app:
-   supersetsecretkey: VEVTVF9OT05fREVWX1NFQ1JFVA==
