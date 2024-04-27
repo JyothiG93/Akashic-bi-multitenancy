@@ -6,222 +6,214 @@ metadata:
 spec:
   restartPolicy: {{ .Values.pod.restartPolicy | quote }}
   containers:
-    - name: init-container1
-      image: busybox
-      command: ["sh", "-c", "until nc -zv localhost 5432 && nc -zv localhost 6379; do echo 'Waiting for database and Redis...'; sleep 1; done"]
-    # - name: init-container2
-    #   image: busybox
-    #   command: ["sh", "-c", "cat /app/docker/docker-entrypoint-initdb.d/examples-init.sh >> /usr/local/examples-initdb.sh"]
-    #   volumeMounts:
-    #    - name: config-volume
-    #      mountPath: /app/docker/docker-entrypoint-initdb.d
-    #      readOnly: false
-    - name: {{ .Values.redisContainer.name | quote }}
-      image: {{ .Values.redisContainer.image | quote }}
-      imagePullPolicy: {{ .Values.redisContainer.imagePullPolicy | quote }}
-      env:
+  - name: init-container1
+    image: busybox
+    command: ["sh", "-c", "until nc -zv localhost 5432 && nc -zv localhost 6379; do echo 'Waiting for database and Redis...'; sleep 1; done"]
+  - name: {{ .Values.redisContainer.name | quote }}
+    image: {{ .Values.redisContainer.image | quote }}
+    imagePullPolicy: {{ .Values.redisContainer.imagePullPolicy | quote }}
+    env:
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-      volumeMounts:
-       - name: redis
-         mountPath: /data  
-    - name: {{ .Values.databaseContainer.name | quote }}
-      image: {{ .Values.databaseContainer.image | quote }}
-      imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
-      env:
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-user
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-password
-        - name: APP_SUPERSETSECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: app-secretkey
+    volumeMounts:
+      - name: redis
+        mountPath: /data  
+  - name: {{ .Values.databaseContainer.name | quote }}
+    image: {{ .Values.databaseContainer.image | quote }}
+    imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+    env:
+      - name: DB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-password
+      - name: APP_SUPERSETSECRETKEY
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: app-secretkey
 {{- range $key, $value := .Values.configMapdata.database }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.app }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-      volumeMounts:
-       - name: db-home
-         mountPath: /var/lib/postgresql/data
-       - name: config-volume 
-         mountPath: /app/docker/docker-entrypoint-initdb.d
-    - name: {{ .Values.superset_initcontainer.name | quote }}
-      image: {{ .Values.superset_initcontainer.image | quote }}
-      imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
-      command: ["/app/docker/docker-init.sh"]
-      securityContext:
-        runAsUser: 0
-      env:
+    volumeMounts:
+      - name: db-home
+        mountPath: /var/lib/postgresql/data
+      - name: config-volume 
+        mountPath: /app/docker/docker-entrypoint-initdb.d
+  - name: {{ .Values.superset_initcontainer.name | quote }}
+    image: {{ .Values.superset_initcontainer.image | quote }}
+    imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
+    command: ["/app/docker/docker-init.sh"]
+    securityContext:
+      runAsUser: 0
+    env:
 {{- range $key, $value := .Values.configMapdata.database }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.app }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-user
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-password
-        - name: APP_SUPERSETSECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: app-secretkey
-      volumeMounts:
-       - name: superset-home
-         mountPath: /app/superset_home
-      readinessProbe: null  # Don't define a readiness probe
-      livenessProbe: null # Don't define a liveness probe      
-    - name: {{ .Values.supersetContainer.name | quote }}
-      image: {{ .Values.supersetContainer.image | quote }}
-      imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
-      ports:
-        - containerPort: {{ .Values.supersetContainer.port }}
-      command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
-      securityContext:
-        runAsUser: 0
-      env:
+      - name: DB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-password
+      - name: APP_SUPERSETSECRETKEY
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: app-secretkey
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+    readinessProbe: null  # Don't define a readiness probe
+    livenessProbe: null # Don't define a liveness probe      
+  - name: {{ .Values.supersetContainer.name | quote }}
+    image: {{ .Values.supersetContainer.image | quote }}
+    imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
+    ports:
+      - containerPort: {{ .Values.supersetContainer.port }}
+    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    securityContext:
+      runAsUser: 0
+    env:
 {{- range $key, $value := .Values.configMapdata.database }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.app }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-user
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-password
-        - name: App_SUPERSETSECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: app-secretkey
-      volumeMounts:
-       - name: superset-home
-         mountPath: /app/superset_home
-    - name: {{ .Values.superset_workercontainer.name | quote }}
-      image: {{ .Values.superset_workercontainer.image | quote }}
-      imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
-      command: ["/app/docker/docker-bootstrap.sh", "worker"]
-      securityContext:
-        runAsUser: 0
-      env:
+      - name: DB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-user
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-password
+      - name: App_SUPERSETSECRETKEY
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: app-secretkey
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+  - name: {{ .Values.superset_workercontainer.name | quote }}
+    image: {{ .Values.superset_workercontainer.image | quote }}
+    imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    securityContext:
+      runAsUser: 0
+    env:
 {{- range $key, $value := .Values.configMapdata.database }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.app }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-user
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-password
-        - name: APP_SUPERSETSECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: app-secretkey
-      volumeMounts:
-       - name: superset-home
-         mountPath: /app/superset_home
-      readinessProbe:
-       exec:
-        command: [
-          "CMD-SHELL",
-          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
-        ]    
-    - name: {{ .Values.superset_worker_beatcontainer.name | quote }}
-      image: {{ .Values.superset_worker_beatcontainer.image | quote }}
-      imagePullPolicy: {{ .Values.superset_worker_beatcontainer.imagePullPolicy | quote }}
-      command: ["/app/docker/docker-bootstrap.sh", "beat"]
-      securityContext:
-        runAsUser: 0
-      env:
+      - name: DB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-password
+      - name: APP_SUPERSETSECRETKEY
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: app-secretkey
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+    readinessProbe:
+      exec:
+       command: ["sh", "-c", "echo Testing...."]    
+  - name: {{ .Values.superset_worker_beatcontainer.name | quote }}
+    image: {{ .Values.superset_worker_beatcontainer.image | quote }}
+    imagePullPolicy: {{ .Values.superset_worker_beatcontainer.imagePullPolicy | quote }}
+    command: ["/app/docker/docker-bootstrap.sh", "beat"]
+    securityContext:
+      runAsUser: 0
+    env:
 {{- range $key, $value := .Values.configMapdata.database }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.redis }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
 {{- range $key, $value := .Values.configMapdata.app }}
-        - name: {{ $key | upper | replace "-" "_" }}
-          value: {{ $value | quote }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
 {{- end }}
-        - name: DB_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-user
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: db-password
-        - name: APP_SUPERSETSECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: db-app-credentials
-              key: app-secretkey
-      volumeMounts:
-       - name: superset-home
-         mountPath: /app/superset_home
-      livenessProbe:  null
+      - name: DB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: db-password
+      - name: APP_SUPERSETSECRETKEY
+        valueFrom:
+          secretKeyRef:
+            name: db-app-credentials
+            key: app-secretkey
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+    livenessProbe: null
+  imagePullSecrets:
+  - name: awsecr-cred
   volumes:
     - name: redis
       persistentVolumeClaim:
