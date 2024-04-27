@@ -3,20 +3,20 @@ pod:
   restartPolicy: Always
 supersetContainer:
   name: superset-app
-  image: 13.56.162.158:5000/superset-image-0.2:latest
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
   port: 8088
   imagepullPolicy: IfNotPresent
 superset_initcontainer:
   name: superset-init
-  image: 13.56.162.158:5000/superset-image-0.2:latest
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
   imagepullPolicy: IfNotPresent
 superset_workercontainer:
   name: superset-worker
-  image: 13.56.162.158:5000/superset-image-0.2:latest
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3 
   imagepullPolicy: IfNotPresent
 superset_worker_beatcontainer:
   name: superset-worker-beat
-  image: 13.56.162.158:5000/superset-image-0.2:latest
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
   imagepullPolicy: IfNotPresent
 databaseContainer:
   name: superset-db
@@ -54,3 +54,5 @@ configMapdata:
    cypressconfig: false
    supersetport: 8088
    mapboxapikey: ''
+secrets:
+  dockerConfigSecret: docker-config 
