@@ -1,22 +1,27 @@
+release:
+ name: tenant1
+storageclassname: tenant1-ebs-sc
+namespace:
+ name: tenant1
 pod:
-  name: akashic-bi-tenant1
+  name: tenant1-akashic-bi
   restartPolicy: Always
 supersetContainer:
   name: superset-app
-  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.4
   port: 8088
   imagepullPolicy: IfNotPresent
 superset_initcontainer:
   name: superset-init
-  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.4
   imagepullPolicy: IfNotPresent
 superset_workercontainer:
   name: superset-worker
-  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3 
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.4
   imagepullPolicy: IfNotPresent
 superset_worker_beatcontainer:
   name: superset-worker-beat
-  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.3
+  image: 802160436285.dkr.ecr.us-west-1.amazonaws.com/akashicmt:superset0.4
   imagepullPolicy: IfNotPresent
 databaseContainer:
   name: superset-db
@@ -28,31 +33,26 @@ redisContainer:
   imagepullPolicy: IfNotPresent
 pvc:
   redis:
-    storageClassName: standard
-    name: redis-pvc
+    storageClassName: tenant1-ebs-sc
+    name: tenant1-redis-pvc
     storage: 5Gi
   database:
-    storageClassName: standard
-    name: database-pvc
+    storageClassName: tenant1-ebs-sc
+    name: tenant1-database-pvc
     storage: 15Gi
   superset:
-    storageClassName: standard
-    name: superset-pvc
+    storageClassName: tenant1-ebs-sc
+    name: tenant1-superset-pvc
     storage: 5Gi
 configMapdata:
-  database:
-   db: superset
-   dbhost: db
-   dbport: 5432
-   dialect: postgresql
-  redis:
-   redishost: redis
-   redisport: 6379
   superset:
-   pythonpath: /app/pythonpath:/app/docker/pythonpath_dev
-   supersetenv: production
-   cypressconfig: false
-   supersetport: 8088
-   mapboxapikey: ''
-secrets:
-  dockerConfigSecret: docker-config 
+    pythonpath: /app/pythonpath:/app/docker/pythonpath_dev
+    supersetenv: production
+    cypressconfig: false
+    mapboxapikey: ''
+ecrsecretname: tenant1-awsecr-cred 
+secretcredname: tenant1-db-app-credentials 
+configmapname: tenant1-db-app-config 
+file1configmap: tenant1-mnt-config
+file2configmap: tenant1-db-mnt-config
+file3configmap: tenant1-superset-config
