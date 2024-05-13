@@ -1,0 +1,19 @@
+release:
+  name: multitenant
+storageclassname: database-ebs-sc
+namespace:
+  name: postgresdatabase
+postgrescontainer:
+  name: database-engine
+  image: postgres:15
+  port: 5432
+pvc:
+  name: postgresql-pvc
+  storageClassName: database-ebs-sc
+  storage: 10Gi
+service:
+  port: 5432
+  targetport: 5432
+ 
+
+
