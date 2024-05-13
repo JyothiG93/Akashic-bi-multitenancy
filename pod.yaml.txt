@@ -2,45 +2,265 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ .Values.pod.name | quote }}
-  namespace: tenant1
+  namespace: {{ .Values.namespace.name | quote }}
   labels: 
      app: superset
 spec:
   restartPolicy: {{ .Values.pod.restartPolicy | quote }}
-  containers:
-#   - name: init-container1
-#     image: alpine:latest
-#     command: ["sh", "-c", "until nc -zv localhost 5432 && nc -zv localhost 6379; do echo 'Waiting for database and Redis...'; sleep 1; done && sleep 10"]
-#   - name: {{ .Values.redisContainer.name | quote }}
-#     image: {{ .Values.redisContainer.image | quote }}
-#     imagePullPolicy: {{ .Values.redisContainer.imagePullPolicy | quote }}
-#     env:
-# {{- range $key, $value := .Values.configMapdata.redis }}
-#       - name: {{ $key | upper | replace "-" "_" }}
-#         value: {{ $value | quote }}
-# {{- end }}
-#     volumeMounts:
-#       - name: redis
-#         mountPath: /data  
-  - name: {{ .Values.databaseContainer.name | quote }}
-    image: {{ .Values.databaseContainer.image | quote }}
-    imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+  initContainers:
+  - name: {{ .Values.superset_initcontainer.name | quote }}
+    image: {{ .Values.superset_initcontainer.image | quote }}
+    imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
+    command: ["/app/docker/docker-init.sh"]
+    securityContext:
+      runAsUser: 0
     env:
-      - name: DB_USERNAME
+      - name: POSTGRES_HOST
+        value: multitenant-service.postgresdatabase.svc.cluster.local
+      - name: POSTGRES_DB
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
-            key: db-user
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-db
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-user
       - name: POSTGRES_PASSWORD
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-password
+{{- range $key, $value := .Values.configMapdata.database }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
+      - name: DATABASE_HOST
+        value: "localhost"
+      - name: DATABASE_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-port
+      - name: DATABASE_DIALECT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: dialect
+      - name: DATABASE_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-user
+      - name: DATABASE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
             key: db-password
+      - name: DATABASE_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: database-db
+      - name: EXAMPLES_HOST
+        value: "localhost"
+      - name: EXAMPLES_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-port
+      - name: EXAMPLES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-user
+      - name: EXAMPLES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-password
+      - name: EXAMPLES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-db
       - name: SUPERSET_SECRET_KEY
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
+            key:   app-secretkey
+      - name: SUPERSET_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: superset-port
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+      - name: config-volume
+        mountPath: /app/docker
+  containers:
+  - name: {{ .Values.redisContainer.name | quote }}
+    image: {{ .Values.redisContainer.image | quote }}
+    imagePullPolicy: {{ .Values.redisContainer.imagePullPolicy | quote }}
+    readinessProbe: 
+      tcpSocket:
+        port: 6379
+      initialDelaySeconds: 10
+      periodSeconds: 10 
+    env:
+{{- range $key, $value := .Values.configMapdata.redis }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
+    volumeMounts:
+      - name: redis
+        mountPath: /data  
+  - name: {{ .Values.databaseContainer.name | quote }}
+    image: {{ .Values.databaseContainer.image | quote }}
+    imagePullPolicy: {{ .Values.databaseContainer.imagePullPolicy | quote }}
+    readinessProbe: 
+      tcpSocket:
+        port: 5432
+      initialDelaySeconds: 10
+      periodSeconds: 10 
+    env:
+      - name: POSTGRES_HOST
+        value: multitenant-service.postgresdatabase.svc.cluster.local
+      - name: POSTGRES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-db
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-password
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
+      - name: DATABASE_HOST
+        value: "localhost"
+      - name: DATABASE_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-port
+      - name: DATABASE_DIALECT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: dialect
+      - name: DATABASE_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-user
+      - name: DATABASE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-password
+      - name: DATABASE_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: database-db
+      - name: EXAMPLES_HOST
+        value: "localhost"
+      - name: EXAMPLES_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-port
+      - name: EXAMPLES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-db
+      - name: EXAMPLES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-user
+      - name: EXAMPLES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-password
+      - name: SUPERSET_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
             key: app-secretkey
+      - name: SUPERSET_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: superset-port
 {{- range $key, $value := .Values.configMapdata.database }}
       - name: {{ $key | upper | replace "-" "_" }}
         value: {{ $value | quote }}
@@ -55,152 +275,295 @@ spec:
 {{- end }}
     volumeMounts:
       - name: db-home
-        mountPath: /var/lib/postgresql/data
+        mountPath: /var/lib/postgresql/
       - name: db-config-volume 
-        mountPath: /app/docker/docker-entrypoint-initdb.d
-# #   - name: {{ .Values.superset_initcontainer.name | quote }}
-# #     image: {{ .Values.superset_initcontainer.image | quote }}
-# #     imagePullPolicy: {{ .Values.superset_initcontainer.imagePullPolicy | quote }}
-# #     command: ["/app/docker/docker-init.sh"]
-# #     securityContext:
-# #       runAsUser: 0
-# #     env:
-# # {{- range $key, $value := .Values.configMapdata.database }}
-# #       - name: {{ $key | upper | replace "-" "_" }}
-# #         value: {{ $value | quote }}
-# # {{- end }}
-# # {{- range $key, $value := .Values.configMapdata.redis }}
-# #       - name: {{ $key | upper | replace "-" "_" }}
-# #         value: {{ $value | quote }}
-# # {{- end }}
-# # {{- range $key, $value := .Values.configMapdata.app }}
-# #       - name: {{ $key | upper | replace "-" "_" }}
-# #         value: {{ $value | quote }}
-# # {{- end }}
-# #       - name: DB_USERNAME
-# #         valueFrom:
-# #           secretKeyRef:
-# #             name: db-app-credentials
-# #             key: db-user
-# #       - name: POSTGRES_PASSWORD
-# #         valueFrom:
-# #           secretKeyRef:
-# #             name: db-app-credentials
-# #             key: db-password
-# #       - name: SUPERSET_SECRET_KEY
-# #         valueFrom:
-# #           secretKeyRef:
-# #             name: db-app-credentials
-# #             key: app-secretkey
-#     volumeMounts:
-#       - name: superset-home
-#         mountPath: /app/superset_home
-#       - name: config-volume
-#         mountPath: /app/docker
-    # readinessProbe: 
-    #   exec:
-    #     command:
-    #     - /bin/sh
-    #     - -c
-    #     - exit 0
-    # livenessProbe: 
-    #     exec:
-    #       command:
-    #       - /bin/sh
-    #       - -c
-    #       - exit 0    
+        mountPath: /docker-entrypoint-initdb.d
   - name: {{ .Values.supersetContainer.name | quote }}
     image: {{ .Values.supersetContainer.image | quote }}
     imagePullPolicy: {{ .Values.supersetContainer.imagePullPolicy | quote }}
     ports:
-      - containerPort: {{ .Values.supersetContainer.port }}
-    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    - containerPort: {{ .Values.supersetContainer.port }}
     securityContext:
       runAsUser: 0
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/sh", "-c", "sleep 60"]
+    readinessProbe:
+      exec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if </dev/tcp/localhost/6379 && </dev/tcp/localhost/5432; then
+            echo "Port Opened, App Containers Starting..."
+            exit 0
+          else
+            echo "Both Ports closed, waiting for readiness..."
+            sleep 1
+            exit 1
+          fi
+      initialDelaySeconds: 120
+      periodSeconds: 10 
+    command: ["sh","-c","sleep 30 && /app/docker/docker-bootstrap.sh app-gunicorn"]
     env:
-{{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-{{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-{{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-      - name: DB_USERNAME
+      - name: POSTGRES_HOST
+        value: multitenant-service.postgresdatabase.svc.cluster.local
+      - name: POSTGRES_DB
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
-            key: db-user
-      - name: DB_PASSWORD
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-db
+      - name: POSTGRES_USER
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
-            key: db-password
-      - name: SUPERSET_SECRET_KEY
-        valueFrom:
-          secretKeyRef:
-            name: db-app-credentials
-            key: app-secretkey
-    volumeMounts:
-      - name: superset-home
-        mountPath: /app/superset_home
-      - name: config-volume
-        mountPath: /app/docker
-  - name: {{ .Values.superset_workercontainer.name | quote }}
-    image: {{ .Values.superset_workercontainer.image | quote }}
-    imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
-    command: ["/app/docker/docker-bootstrap.sh", "worker"]
-    securityContext:
-      runAsUser: 0
-    env:
-{{- range $key, $value := .Values.configMapdata.database }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-{{- range $key, $value := .Values.configMapdata.redis }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-{{- range $key, $value := .Values.configMapdata.app }}
-      - name: {{ $key | upper | replace "-" "_" }}
-        value: {{ $value | quote }}
-{{- end }}
-      - name: DB_USERNAME
-        valueFrom:
-          secretKeyRef:
-            name: db-app-credentials
-            key: db-user
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-user
       - name: POSTGRES_PASSWORD
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-password
+{{- range $key, $value := .Values.configMapdata.database }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+      - name: DATABASE_HOST
+        value: "localhost"
+      - name: DATABASE_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-port
+      - name: DATABASE_DIALECT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: dialect
+      - name: DATABASE_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-user
+      - name: DATABASE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
             key: db-password
+      - name: DATABASE_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: database-db
+      - name: EXAMPLES_HOST
+        value: "localhost"
+      - name: EXAMPLES_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-port
+      - name: EXAMPLES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-user
+      - name: EXAMPLES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-password
+      - name: EXAMPLES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-db
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
       - name: SUPERSET_SECRET_KEY
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
             key: app-secretkey
+      - name: SUPERSET_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: superset-port
     volumeMounts:
       - name: superset-home
         mountPath: /app/superset_home
       - name: config-volume
         mountPath: /app/docker
-    # livenessProbe:
-    #   exec:
-    #     command:
-    #     - pgrep
-    #     - -f
-    #     - celery
-    # readinessProbe:
-    #   exec:
-    #     command:
-    #     - /bin/sh
-    #     - -c
-    #     - exit 0     
+      - name: superset-config-volume
+        mountPath: /app/pythonpath
+  - name: {{ .Values.superset_workercontainer.name | quote }}
+    image: {{ .Values.superset_workercontainer.image | quote }}
+    imagePullPolicy: {{.Values.superset_workercontainer.imagePullPolicy | quote }}
+    securityContext:
+      runAsUser: 0
+    readinessProbe:
+      exec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          if </dev/tcp/localhost/6379 && </dev/tcp/localhost/5432; then
+            echo "Port Opened, App Containers Starting..."
+            exit 0
+          else
+            echo "Both Ports closed, waiting for readiness..."
+            sleep 1
+            exit 1
+          fi
+      initialDelaySeconds: 100
+      periodSeconds: 10 
+    command: ["/app/docker/docker-bootstrap.sh", "worker"]
+    livenessProbe:
+      exec:
+      # -- Liveness probe command
+      # @default -- a `celery inspect ping` command
+        command:
+          - sh
+          - -c
+          - celery -A superset.tasks.celery_app:app inspect ping -d celery@$HOSTNAME
+      initialDelaySeconds: 30
+      timeoutSeconds: 60
+    env:
+      - name: POSTGRES_HOST
+        value: multitenant-service.postgresdatabase.svc.cluster.local
+      - name: POSTGRES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-db
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-password
+{{- range $key, $value := .Values.configMapdata.database }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.redis }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+{{- range $key, $value := .Values.configMapdata.app }}
+      - name: {{ $key | upper | replace "-" "_" }}
+        value: {{ $value | quote }}
+{{- end }}
+      - name: DATABASE_HOST
+        value: "localhost"
+      - name: DATABASE_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-port
+      - name: DATABASE_DIALECT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: dialect
+      - name: DATABASE_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-user
+      - name: DATABASE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: db-password
+      - name: DATABASE_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: database-db
+      - name: EXAMPLES_HOST
+        value: "localhost"
+      - name: EXAMPLES_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-port
+      - name: EXAMPLES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-user
+      - name: EXAMPLES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-password
+      - name: EXAMPLES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-db
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
+      - name: SUPERSET_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: app-secretkey
+      - name: SUPERSET_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: superset-port
+    volumeMounts:
+      - name: superset-home
+        mountPath: /app/superset_home
+      - name: config-volume
+        mountPath: /app/docker
+      - name: superset-config-volume
+        mountPath: /app/pythonpath
   - name: {{ .Values.superset_worker_beatcontainer.name | quote }}
     image: {{ .Values.superset_worker_beatcontainer.image | quote }}
     imagePullPolicy: {{ .Values.superset_worker_beatcontainer.imagePullPolicy | quote }}
@@ -208,6 +571,23 @@ spec:
     securityContext:
       runAsUser: 0
     env:
+      - name: POSTGRES_HOST
+        value: multitenant-service.postgresdatabase.svc.cluster.local
+      - name: POSTGRES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-db
+      - name: POSTGRES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-user
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: postgres-password
 {{- range $key, $value := .Values.configMapdata.database }}
       - name: {{ $key | upper | replace "-" "_" }}
         value: {{ $value | quote }}
@@ -220,26 +600,89 @@ spec:
       - name: {{ $key | upper | replace "-" "_" }}
         value: {{ $value | quote }}
 {{- end }}
-      - name: DB_USERNAME
+      - name: DATABASE_HOST
+        value: "localhost"
+      - name: DATABASE_PORT
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
+            key: db-port
+      - name: DATABASE_DIALECT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: dialect
+      - name: DATABASE_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
             key: db-user
-      - name: POSTGRES_PASSWORD
+      - name: DATABASE_PASSWORD
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
             key: db-password
+      - name: DATABASE_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: database-db
+      - name: EXAMPLES_HOST
+        value: "localhost"
+      - name: EXAMPLES_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-port
+      - name: EXAMPLES_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-user
+      - name: EXAMPLES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-password
+      - name: EXAMPLES_DB
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: example-db
+      - name: REDIS_HOST
+        value: "localhost"
+      - name: REDIS_PORT  
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-port
+      - name: REDIS_USER
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-user
+      - name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: redis-password
       - name: SUPERSET_SECRET_KEY
         valueFrom:
           secretKeyRef:
-            name: db-app-credentials
+            name: {{ .Values.secretcredname | quote }}
             key: app-secretkey
+      - name: SUPERSET_PORT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Values.secretcredname | quote }}
+            key: superset-port
     volumeMounts:
       - name: superset-home
         mountPath: /app/superset_home
       - name: config-volume
         mountPath: /app/docker
+      - name: superset-config-volume
+        mountPath: /app/pythonpath
     # livenessProbe:
     #   exec:
     #     command:
@@ -253,7 +696,7 @@ spec:
     #      - -c
     #      - exit 0
   imagePullSecrets:
-  - name: awsecr-cred
+  - name: {{ .Values.ecrsecretname | quote }}
   volumes:
     - name: redis
       persistentVolumeClaim:
@@ -266,9 +709,13 @@ spec:
         claimName: {{ .Values.pvc.superset.name | quote }}
     - name: config-volume
       configMap:
-         name: mnt-config  
-         defaultMode: 0777
+        name: {{ .Values.file1configmap | quote }} 
+        defaultMode: 0777
     - name: db-config-volume
       configMap:
-         name: mnt-config-2
-         defaultMode: 0777
+        name: {{ .Values.file2configmap | quote }}
+        defaultMode: 0777
+    - name: superset-config-volume
+      configMap:
+        name: {{ .Values.file3configmap | quote }}
+        defaultMode: 0777
