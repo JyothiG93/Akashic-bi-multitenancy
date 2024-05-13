@@ -69,7 +69,7 @@ data:
         ;;
     esac
 
-  docker-ci.sh: |+
+  docker-ci.sh: |
     #!/usr/bin/env bash
     #
     # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -96,8 +96,7 @@ data:
     # start up the web server
 
     /usr/bin/run-server.sh
-
-  docker-frontend.sh: |+
+  docker-frontend.sh: |
     #!/usr/bin/env bash
     #
     # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -127,7 +126,6 @@ data:
 
     echo "Running frontend"
     npm run dev
-
   docker-init.sh: |+
     #!/usr/bin/env bash
     #
@@ -208,7 +206,7 @@ data:
         echo_step "4" "Complete" "Loading examples"
     fi
 
-  frontend-mem-nag.sh: |+
+  frontend-mem-nag.sh: |
     #!/usr/bin/env bash
     #
     # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -258,7 +256,6 @@ data:
 
     # Always nag if they're low on mem...
     echo_mem_warn
-
   requirements-local.txt: |
     python-keycloak==3.3.0
     WeasyPrint==60.1
@@ -299,7 +296,9 @@ data:
         --limit-request-field_size ${SERVER_LIMIT_REQUEST_FIELD_SIZE:-0} \
         "${FLASK_APP}"
 
+
 kind: ConfigMap
 metadata:
-  name: mnt-config
-  namespace: tenant1
+  name: {{ .Values.file1configmap | quote }}
+  namespace: {{ .Values.namespace.name | quote }}
+
